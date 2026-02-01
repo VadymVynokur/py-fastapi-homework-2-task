@@ -204,7 +204,7 @@ async def update_movie(
             ]
         elif key == "languages":
             movie.languages = [
-                await get_or_create(db, LanguageModel, name=l) for l in value
+                await get_or_create(db, LanguageModel, name=lang) for lang in value
             ]
         else:
             setattr(movie, key, value)
