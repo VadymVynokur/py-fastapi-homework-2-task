@@ -121,7 +121,7 @@ async def create_movie(
         await get_or_create(db, ActorModel, name=a) for a in data.actors
     ]
     movie.languages = [
-        await get_or_create(db, LanguageModel, name=l) for l in data.languages
+        await get_or_create(db, LanguageModel, name=lang) for lang in data.languages
     ]
 
     db.add(movie)
