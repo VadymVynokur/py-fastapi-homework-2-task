@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.session_sqlite import get_sqlite_db
+from database import get_db
 from database.models import (
     MovieModel, CountryModel, GenreModel, ActorModel, LanguageModel
 )
@@ -34,8 +34,8 @@ async def get_or_create(db: AsyncSession, model, **kwargs):
 @router.get("/", response_model=MovieListResponseSchema)
 async def get_movies(
     page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1),
-    db: AsyncSession = Depends(get_sqlite_db),
+    per_page: int = Query(10, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(func.count(MovieModel.id)))
     total_items = result.scalar_one()
@@ -78,7 +78,7 @@ async def get_movies(
 )
 async def create_movie(
     data: MovieCreateSchema,
-    db: AsyncSession = Depends(get_sqlite_db),
+    db: AsyncSession = Depends(get_db),
 ):
     if data.date > date.today() + timedelta(days=365):
         raise HTTPException(
@@ -121,7 +121,7 @@ async def create_movie(
         await get_or_create(db, ActorModel, name=a) for a in data.actors
     ]
     movie.languages = [
-        await get_or_create(db, LanguageModel, name=lang) for lang in data.languages
+        await get_or_create(db, LanguageModel, name=l) for l in data.languages
     ]
 
     db.add(movie)
@@ -142,7 +142,7 @@ async def create_movie(
 
 
 @router.get("/{movie_id}/", response_model=MovieDetailSchema)
-async def get_movie(movie_id: int, db: AsyncSession = Depends(get_sqlite_db)):
+async def get_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
     stmt = (
         select(MovieModel)
         .options(
@@ -168,7 +168,7 @@ async def get_movie(movie_id: int, db: AsyncSession = Depends(get_sqlite_db)):
 async def update_movie(
     movie_id: int,
     data: MovieUpdateSchema,
-    db: AsyncSession = Depends(get_sqlite_db)
+    db: AsyncSession = Depends(get_db)
 ):
     stmt = (
         select(MovieModel)
@@ -192,29 +192,14 @@ async def update_movie(
     update_data = data.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
-        if key == "country":
-            movie.country = await get_or_create(db, CountryModel, code=value)
-        elif key == "genres":
-            movie.genres = [
-                await get_or_create(db, GenreModel, name=g) for g in value
-            ]
-        elif key == "actors":
-            movie.actors = [
-                await get_or_create(db, ActorModel, name=a) for a in value
-            ]
-        elif key == "languages":
-            movie.languages = [
-                await get_or_create(db, LanguageModel, name=lang) for lang in value
-            ]
-        else:
-            setattr(movie, key, value)
+        setattr(movie, key, value)
 
     await db.commit()
     return {"detail": "Movie updated successfully."}
 
 
 @router.delete("/{movie_id}/", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_movie(movie_id: int, db: AsyncSession = Depends(get_sqlite_db)):
+async def delete_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
     stmt = select(MovieModel).where(MovieModel.id == movie_id)
     movie = (await db.execute(stmt)).scalar_one_or_none()
 

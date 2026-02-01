@@ -104,14 +104,17 @@ class MovieUpdateSchema(BaseModel):
     status: Optional[str] = None
     budget: Optional[float] = None
     revenue: Optional[float] = None
-    country: Optional[str] = None
-    genres: Optional[List[str]] = None
-    actors: Optional[List[str]] = None
-    languages: Optional[List[str]] = None
 
     @field_validator("score")
     @classmethod
     def validate_score(cls, v: Optional[float]) -> Optional[float]:
         if v is not None and not 0 <= v <= 100:
             raise ValueError("Score must be between 0 and 100")
+        return v
+
+    @field_validator("budget", "revenue")
+    @classmethod
+    def validate_money(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and v < 0:
+            raise ValueError("Must be non-negative")
         return v
