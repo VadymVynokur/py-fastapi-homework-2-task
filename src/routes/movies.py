@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from math import ceil
 
+from pydantic import ValidationError
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -167,9 +168,18 @@ async def get_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
 @router.patch("/{movie_id}/", status_code=status.HTTP_200_OK)
 async def update_movie(
     movie_id: int,
-    data: MovieUpdateSchema,
+    data_raw: dict,
     db: AsyncSession = Depends(get_db)
 ):
+    try:
+        data = MovieUpdateSchema(**data_raw)
+    except (ValidationError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid input data."
+        )
+
+    # 2. Пошук фільму в базі
     stmt = (
         select(MovieModel)
         .options(
@@ -190,7 +200,6 @@ async def update_movie(
         )
 
     update_data = data.model_dump(exclude_unset=True)
-
     for key, value in update_data.items():
         setattr(movie, key, value)
 
